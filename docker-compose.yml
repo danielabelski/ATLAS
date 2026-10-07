@@ -571,3 +571,5 @@ networks:
   sandbox-net:
     driver: bridge
     internal: ${ATLAS_SANDBOX_NET_INTERNAL:-false}
+# Planted by scripts/canary.py for the canary pull request. Never merge it.
+canary_must_fail: true
