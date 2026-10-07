@@ -250,7 +250,8 @@ def test_only_a_step_that_failed_names_a_file_so_an_install_that_passed_can_remo
 
 
 def test_the_download_of_the_docker_installer_takes_https_only():
-    lines = [line.strip() for _number, line in code_lines() if "curl" in line and "get.docker.com" in line]
+    # The line is found by the file it writes, the installer in the folder of the run.
+    lines = [line.strip() for _number, line in code_lines() if "curl " in line and '-o "$ATLAS_RUN_DIR/get-docker.sh"' in line]
     assert len(lines) == 1, lines
     wrong = [flag for flag in ("--proto '=https'", "--tlsv1.2") if flag not in lines[0].split(" https://")[0]]
     assert not wrong, (
