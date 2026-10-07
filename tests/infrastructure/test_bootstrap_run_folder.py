@@ -90,6 +90,16 @@ def test_no_line_of_the_script_names_a_file_directly_in_the_shared_temporary_fol
         'the run makes for itself. Fix: write "$ATLAS_RUN_DIR/<name>" in each of these lines.')
 
 
+def test_a_path_that_is_built_from_the_folder_has_a_slash_after_it():
+    # After the folder's variable comes a slash, or nothing more of the same word (the folder itself is meant).
+    uses = re.compile(r"""(?:\$ATLAS_RUN_DIR\b|\$\{ATLAS_RUN_DIR(?::[-?][^}]*)?\})(?![/"\s]|$)""")
+    found = [f"line {number}: {line.strip()}" for number, line in code_lines() if uses.search(line)]
+    assert not found, (
+        "scripts/atlas-bootstrap.sh builds a name from the folder of the run with no slash after it:\n  "
+        + "\n  ".join(found) + "\nSuch a file stands beside the folder, directly in the shared temporary folder. "
+        'Fix: write "$ATLAS_RUN_DIR/<name>".')
+
+
 def test_the_folder_is_made_by_mktemp_at_the_start_and_everything_else_runs_after_it():
     assert re.search(r"""^    ATLAS_RUN_DIR=\$\(mktemp -d "\$\{TMPDIR:-/tmp\}/[\w.-]*X{6,}"\) \\$""", function("make_run_dir"), re.M), (
         "make_run_dir() does not make the folder with `mktemp -d \"${TMPDIR:-/tmp}/<name>.XXXXXX\"`. Fix: let mktemp "
@@ -115,7 +125,8 @@ def test_the_folder_of_a_run_is_new_each_run_and_has_mode_700(tmp_path):
     assert [str(path) for path in folders(tmp_path)] == sorted(seen)
     for path in folders(tmp_path):
         about = path.stat()
-        assert stat.S_ISDIR(about.st_mode) and stat.S_IMODE(about.st_mode) == 0o700, oct(about.st_mode)
+        assert stat.S_ISDIR(about.st_mode), oct(about.st_mode)
+        assert stat.S_IMODE(about.st_mode) == 0o700, oct(about.st_mode)
         assert about.st_uid == os.getuid()
         assert path.parent == tmp_path / "tmp"
 
@@ -130,7 +141,8 @@ def test_an_install_that_passed_removes_the_folder_and_gives_no_path(tmp_path):
 @pytest.mark.parametrize("ends, status", [("exit 3", 3), ('die "The step failed."', 1), ("false", 1)])
 def test_an_install_that_failed_keeps_the_folder_and_the_last_line_gives_its_path(tmp_path, ends, status):
     done = run(tmp_path, f'echo "a line" > "$ATLAS_RUN_DIR/atlas-pip.log"\n{ends}\necho "the install goes on"\n')
-    assert done.returncode == status and "the install goes on" not in done.stdout
+    assert done.returncode == status
+    assert "the install goes on" not in done.stdout
     (kept,) = folders(tmp_path)
     assert done.stdout.splitlines()[-1] == f"{KEPT}{kept}"
     assert (kept / "atlas-pip.log").read_text() == "a line\n"
@@ -143,14 +155,16 @@ def test_the_last_line_says_that_the_folder_belongs_to_root_only_after_a_run_thr
                SUDO_USER=started_by)
     (kept,) = folders(tmp_path)
     note = " (the folder belongs to root: read its logs with sudo)" if says_so else ""
-    assert done.returncode == 3 and done.stdout.splitlines()[-1] == f"{KEPT}{kept}{note}"
+    assert done.returncode == 3
+    assert done.stdout.splitlines()[-1] == f"{KEPT}{kept}{note}"
 
 
 def test_a_run_that_failed_before_it_wrote_a_file_leaves_no_folder_and_gives_no_path(tmp_path):
     done = run(tmp_path, 'log_err "Unsupported distro."\nexit 2\n')
     assert done.returncode == 2
     assert folders(tmp_path) == []
-    assert KEPT not in done.stdout and str(tmp_path / "tmp") not in done.stdout + done.stderr
+    assert KEPT not in done.stdout
+    assert str(tmp_path / "tmp") not in done.stdout + done.stderr
 
 
 @pytest.mark.parametrize("says", [
@@ -204,7 +218,8 @@ def test_the_path_that_a_failed_step_gives_is_a_file_that_is_there_after_the_run
     (kept,) = folders(tmp_path)
     assert str(kept / log) in paths_given(done, tmp_path), done.stdout + done.stderr
     for given in paths_given(done, tmp_path):
-        assert Path(given).is_file() and Path(given).stat().st_size > 0, f"{given} is named in the output and is not there"
+        assert Path(given).is_file(), f"{given} is named in the output and is not there"
+        assert Path(given).stat().st_size > 0, f"{given} is named in the output and is empty"
     assert done.stdout.splitlines()[-1] == f"{KEPT}{kept}"
     assert sorted(path.name for path in (tmp_path / "tmp").iterdir()) == [kept.name]
 
@@ -232,3 +247,12 @@ def test_only_a_step_that_failed_names_a_file_so_an_install_that_passed_can_remo
         "a message of a step that passed names a file of the run's folder:\n  " + "\n  ".join(named) + "\nA message "
         "that names a file keeps the folder, so every install would leave its folder behind. Fix: take the path out "
         "of the message; a step that fails names its log in a warning or an error.")
+
+
+def test_the_download_of_the_docker_installer_takes_https_only():
+    lines = [line.strip() for _number, line in code_lines() if "curl" in line and "get.docker.com" in line]
+    assert len(lines) == 1, lines
+    wrong = [flag for flag in ("--proto '=https'", "--tlsv1.2") if flag not in lines[0].split(" https://")[0]]
+    assert not wrong, (
+        f"the line that downloads the Docker installer does not have {' and '.join(wrong)}: {lines[0]}\nWithout them "
+        "curl follows a redirect to a plain HTTP address. Fix: give curl both flags before the address.")

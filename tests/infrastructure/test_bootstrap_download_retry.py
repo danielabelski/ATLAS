@@ -174,9 +174,11 @@ exit 7
 """, encoding="utf-8")
     (tmp_path / "look").chmod(0o755)
     done = run(tmp_path, 'retry_download "The package download" -- look || true\n')
-    assert done.returncode == 0 and len(retry_lines(done)) == 2, done.stdout + done.stderr
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert len(retry_lines(done)) == 2, done.stdout + done.stderr
     in_the_run = (tmp_path / "run.files").read_text().split()
-    assert len(in_the_run) == 1 and in_the_run[0].startswith("try."), in_the_run
+    assert len(in_the_run) == 1, in_the_run
+    assert in_the_run[0].startswith("try."), in_the_run
     assert (tmp_path / "folder.mode").read_text().strip() == "drwx------"
     assert (tmp_path / "folder.files").read_text().split() == ["output", "status"]
     assert list((tmp_path / "run").iterdir()) == []

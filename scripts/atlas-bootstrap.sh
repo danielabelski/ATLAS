@@ -130,7 +130,7 @@ end_of_run() {
         if [[ "$(id -u)" == "0" && -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
             owner=" (the folder belongs to root: read its logs with sudo)"
         fi
-        echo "    The downloads and logs of this run are kept in $ATLAS_RUN_DIR$owner"
+        printf '    The downloads and logs of this run are kept in %s%s\n' "$ATLAS_RUN_DIR" "$owner"
     fi
 }
 
@@ -486,7 +486,7 @@ install_docker() {
     fi
 
     # Official Docker convenience script — handles repo setup per distro.
-    curl -fsSL https://get.docker.com -o "$ATLAS_RUN_DIR/get-docker.sh" || die "Failed to download Docker installer."
+    curl --proto '=https' --tlsv1.2 -fsSL https://get.docker.com -o "$ATLAS_RUN_DIR/get-docker.sh" || die "Failed to download Docker installer."
     $SUDO sh "$ATLAS_RUN_DIR/get-docker.sh" >"$ATLAS_RUN_DIR/docker-install.log" 2>&1 || {
         log_err "Docker install failed. Last 20 lines of $ATLAS_RUN_DIR/docker-install.log:"
         tail -20 "$ATLAS_RUN_DIR/docker-install.log" >&2 || true
