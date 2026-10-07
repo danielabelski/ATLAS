@@ -571,6 +571,7 @@ def test_a_size_baseline_that_cannot_be_read_needs_approval(ic):
     (".github/canary.json", "change to a file that configures the checks"),
     ("scripts/verify.py", "change to a file that configures the checks"),
     ("scripts/change_base.py", "change to a file that configures the checks"),
+    ("scripts/fix_tests.py", "change to a file that configures the checks"),
     ("scripts/dockerfile_lint.py", "change to a file that configures the checks"),
     ("scripts/setup/rulesets.sh", "change to a file that configures the checks"),
     (".hadolint.yaml", "change to a file that configures the checks"),
