@@ -12,6 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.github/requirements"
 # click is held at 8.2.1: with click 8.5 this pip-tools writes an option into
 # the header that was not given (`--no-index`), and the header must say the
-# command as it was run.
-uv tool run --python 3.12 --from 'pip-tools==7.6.1' --with 'click==8.2.1' \
+# command as it was run. `--no-build`: uv takes pip-tools and what it needs as
+# built packages only, so getting the tool runs no package's build script.
+uv tool run --no-build --python 3.12 --from 'pip-tools==7.6.1' --with 'click==8.2.1' \
     pip-compile --quiet --generate-hashes --output-file=ci.txt ci.in
