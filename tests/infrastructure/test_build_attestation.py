@@ -2,7 +2,7 @@
 
 The first tests read the workflow file. The others run the script of the job
 `alias image tag` as it is, in bash, with a stand-in for `docker` that answers
-from a list and writes down each call. No registry is reached.
+from a file that the test writes, and writes down each call. No registry is reached.
 """
 import re
 import subprocess
@@ -65,13 +65,18 @@ def lines_for(tag, **other):
 def alias(tmp_path, alias_tag, digests="", missing=()):
     """Run the script of the alias job. Gives (the run, the tags that were moved as {image:tag -> source})."""
     (script,) = [step["run"] for step in steps_of("alias") if step.get("name") == "Create alias"]
+    source_tag = alias_tag.split("=")[0]
+    # What the registry answers: one line "<image>:<tag> <digest>" for each image that has the source tag.
+    answers = tmp_path / "answers"
+    answers.write_text("".join(f"ghcr.io/inferstep/atlas-{svc}:{source_tag} {digest(svc, source_tag)}\n"
+                               for svc in SERVICES if svc not in missing))
     calls = tmp_path / "calls"
     stand_in = f"""docker() {{
   echo "$*" >> "{calls}"
   if [ "$3" = inspect ]; then
-    image="${{4%%:*}}"; tag="${{4##*:}}"; service="${{image##*/atlas-}}"
-    case " {' '.join(missing)} " in *" $service "*) return 0 ;; esac
-    printf 'sha256:%s\\n' "$(printf '%s' "$service-$tag" | od -An -tx1 | tr -d ' \\n' | awk '{{ s=$0; while (length(s) < 64) s = s $0; print substr(s, 1, 64) }}')"
+    while read -r name answer; do
+      if [ "$name" = "$4" ]; then echo "$answer"; fi
+    done < "{answers}"
   fi
 }}
 """
